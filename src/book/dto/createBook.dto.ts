@@ -1,15 +1,15 @@
 import { IsNotEmpty } from 'class-validator';
 
 export class CreateBookDto {
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'ISBN is required' })
   readonly isbn: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Title is required' })
   readonly title: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Pages is required' })
   readonly pages: number;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Published is required' })
   readonly published: number;
 }
