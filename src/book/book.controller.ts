@@ -44,4 +44,12 @@ export class BookController {
   ) {
     return await this.bookService.updateBook(isbn, updateBookDto);
   }
+
+  @Post(':isbn/authors')
+  async addAuthorToBook(
+    @Param('isbn') isbn: string, // Get the ISBN from the URL
+    @Body('authorId') authorId: string, // Get the authorId from the request body
+  ) {
+    return await this.bookService.addAuthorToBook(isbn, authorId);
+  }
 }
