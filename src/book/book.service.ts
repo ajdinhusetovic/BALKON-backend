@@ -23,7 +23,7 @@ export class BookService {
   }
 
   async getAllBooks() {
-    const books = await this.bookRepository.find();
+    const books = await this.bookRepository.find({ relations: ['authors'] });
 
     return books;
   }
@@ -65,6 +65,15 @@ export class BookService {
     return { message: `Book with ISBN ${isbn} successfully deleted` };
   }
 
+  async getAuthorsForBook(isbn: string) {
+    const book = await this.bookRepository.findOne({
+      where: { isbn },
+      relations: ['authors'],
+    });
+
+    return book.authors;
+  }
+
   async addAuthorToBook(isbn: string, authorId: string) {
     const book = await this.bookRepository.findOne({
       where: { isbn },
@@ -83,7 +92,6 @@ export class BookService {
       throw new NotFoundException(`Author with ID ${authorId} not found`);
     }
 
-    // Add the author to the book's authors array if not already linked
     if (
       !book.authors.some((existingAuthor) => existingAuthor.id === author.id)
     ) {
@@ -91,6 +99,41 @@ export class BookService {
       await this.bookRepository.save(book);
     }
 
-    return book; // Return the updated book
+    return book;
+  }
+
+  async deleteAuthorFromBook(isbn: string, authorId: string) {
+    const book = await this.bookRepository.findOne({
+      where: { isbn },
+      relations: ['authors'],
+    });
+
+    if (!book) {
+      throw new NotFoundException(`Book with ISBN ${isbn} not found`);
+    }
+
+    const author = await this.authorRepository.findOne({
+      where: { id: authorId },
+    });
+
+    if (!author) {
+      throw new NotFoundException(`Author with ID ${authorId} not found`);
+    }
+
+    const authorIndex = book.authors.findIndex(
+      (existingAuthor) => existingAuthor.id === author.id,
+    );
+
+    if (authorIndex === -1) {
+      throw new NotFoundException(
+        `Author with ID ${authorId} is not linked to the book`,
+      );
+    }
+
+    book.authors.splice(authorIndex, 1);
+
+    await this.bookRepository.save(book);
+
+    return book;
   }
 }

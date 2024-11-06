@@ -45,11 +45,24 @@ export class BookController {
     return await this.bookService.updateBook(isbn, updateBookDto);
   }
 
+  @Get(':isbn/authors')
+  async getAuthorsForBook(@Param('isbn') isbn: string) {
+    return await this.bookService.getAuthorsForBook(isbn);
+  }
+
   @Post(':isbn/authors')
   async addAuthorToBook(
     @Param('isbn') isbn: string, // Get the ISBN from the URL
     @Body('authorId') authorId: string, // Get the authorId from the request body
   ) {
     return await this.bookService.addAuthorToBook(isbn, authorId);
+  }
+
+  @Delete(':isbn/authors/:authorId')
+  async deleteAuthorFromBook(
+    @Param('isbn') isbn: string,
+    @Param('authorId') authorId: string,
+  ) {
+    return await this.bookService.deleteAuthorFromBook(isbn, authorId);
   }
 }
