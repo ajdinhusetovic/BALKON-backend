@@ -59,6 +59,8 @@ export class BookController {
         image.buffer,
       );
     }
+
+    return await this.bookService.createBook(createBookDto);
   }
 
   @Get()
