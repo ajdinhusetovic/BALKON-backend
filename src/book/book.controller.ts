@@ -2,10 +2,14 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   Param,
+  ParseFilePipe,
   Post,
   Put,
+  UploadedFile,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -19,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { BookEntity } from './book.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('books')
 @Controller('books')
@@ -26,6 +31,7 @@ export class BookController {
   constructor(private readonly bookService: BookService) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({
     summary: 'Create a new book',
     description:
@@ -36,8 +42,23 @@ export class BookController {
     description: 'The book has been successfully created.',
   })
   @UsePipes(new ValidationPipe())
-  async create(@Body() createBookDto: CreateBookDto) {
-    return await this.bookService.createBook(createBookDto);
+  async create(
+    @Body() createBookDto: CreateBookDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'image/jpeg' })],
+        fileIsRequired: false,
+      }),
+    )
+    image: Express.Multer.File,
+  ) {
+    if (image) {
+      return await this.bookService.createBook(
+        createBookDto,
+        image.originalname,
+        image.buffer,
+      );
+    }
   }
 
   @Get()
@@ -114,6 +135,7 @@ export class BookController {
   }
 
   @Put(':isbn')
+  @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Update a book by ISBN' })
   @ApiParam({
     name: 'isbn',
@@ -149,7 +171,23 @@ export class BookController {
   async updateBook(
     @Param('isbn') isbn: string,
     @Body() updateBookDto: CreateBookDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'image/jpeg' })],
+        fileIsRequired: false,
+      }),
+    )
+    image: Express.Multer.File,
   ) {
+    if (image) {
+      return await this.bookService.updateBook(
+        isbn,
+        updateBookDto,
+        image.originalname,
+        image.buffer,
+      );
+    }
+
     return await this.bookService.updateBook(isbn, updateBookDto);
   }
 

@@ -2,10 +2,14 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   Param,
+  ParseFilePipe,
   Post,
   Put,
+  UploadedFile,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -18,6 +22,7 @@ import {
   ApiBody,
   ApiTags,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Authors')
 @Controller('authors')
@@ -41,6 +46,7 @@ export class AuthorController {
 
   @Post()
   @UsePipes(new ValidationPipe())
+  @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Create a new author' })
   @ApiBody({
     description: 'Author creation data',
@@ -62,7 +68,24 @@ export class AuthorController {
       birthYear: 1980,
     },
   })
-  async create(@Body() createAuthorDto: CreateAuthorDto) {
+  async create(
+    @Body() createAuthorDto: CreateAuthorDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'image/jpeg' })],
+        fileIsRequired: false,
+      }),
+    )
+    image: Express.Multer.File,
+  ) {
+    if (image) {
+      return await this.authorService.createAuthor(
+        createAuthorDto,
+        image.originalname,
+        image.buffer,
+      );
+    }
+
     return await this.authorService.createAuthor(createAuthorDto);
   }
 
@@ -89,6 +112,7 @@ export class AuthorController {
   }
 
   @Put(':id')
+  @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Update an author by ID' })
   @ApiParam({
     name: 'id',
@@ -119,7 +143,23 @@ export class AuthorController {
   async updateAuthor(
     @Param('id') id: string,
     @Body() updateAuthorDto: CreateAuthorDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'image/jpeg' })],
+        fileIsRequired: false,
+      }),
+    )
+    image: Express.Multer.File,
   ) {
+    if (image) {
+      return await this.authorService.updateAuthor(
+        id,
+        updateAuthorDto,
+        image.originalname,
+        image.buffer,
+      );
+    }
+
     return await this.authorService.updateAuthor(id, updateAuthorDto);
   }
 

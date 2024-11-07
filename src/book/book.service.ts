@@ -4,9 +4,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { BookEntity } from './book.entity';
 import { Repository } from 'typeorm';
 import { AuthorEntity } from 'src/author/author.entity';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 @Injectable()
 export class BookService {
+  private readonly s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
   constructor(
     @InjectRepository(BookEntity)
     private readonly bookRepository: Repository<BookEntity>,
@@ -15,9 +27,24 @@ export class BookService {
     private readonly authorRepository: Repository<AuthorEntity>,
   ) {}
 
-  async createBook(createBookDto: CreateBookDto) {
+  async createBook(
+    createBookDto: CreateBookDto,
+    fileName?: string,
+    file?: Buffer,
+  ) {
     const book = new BookEntity();
     Object.assign(book, createBookDto);
+
+    if (file && fileName) {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileName,
+          Body: file,
+        }),
+      );
+      book.image = `https://balkon-images.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    }
 
     return await this.bookRepository.save(book);
   }
@@ -41,7 +68,12 @@ export class BookService {
     return book;
   }
 
-  async updateBook(isbn: string, updateBookDto: CreateBookDto) {
+  async updateBook(
+    isbn: string,
+    updateBookDto: CreateBookDto,
+    fileName?: string,
+    file?: Buffer,
+  ) {
     const book = await this.bookRepository.findOne({ where: { isbn } });
 
     if (!book) {
@@ -49,6 +81,17 @@ export class BookService {
     }
 
     Object.assign(book, updateBookDto);
+
+    if (file && fileName) {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileName,
+          Body: file,
+        }),
+      );
+      book.image = `https://balkon-images.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    }
 
     return await this.bookRepository.save(book);
   }
@@ -58,6 +101,17 @@ export class BookService {
 
     if (!book) {
       throw new NotFoundException(`Book with ISBN ${isbn} not found`);
+    }
+
+    if (book.image) {
+      const fileKey = book.image.split('/').pop();
+
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileKey,
+        }),
+      );
     }
 
     await this.bookRepository.remove(book);

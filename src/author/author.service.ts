@@ -4,9 +4,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateAuthorDto } from './dto/createAuthor.dto';
 import { BookEntity } from 'src/book/book.entity';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 @Injectable()
 export class AuthorService {
+  private readonly s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
   constructor(
     @InjectRepository(AuthorEntity)
     private readonly authorRepository: Repository<AuthorEntity>,
@@ -25,9 +37,24 @@ export class AuthorService {
     return authors;
   }
 
-  async createAuthor(createAuthorDto: CreateAuthorDto) {
+  async createAuthor(
+    createAuthorDto: CreateAuthorDto,
+    fileName?: string,
+    file?: Buffer,
+  ) {
     const author = new AuthorEntity();
     Object.assign(author, createAuthorDto);
+
+    if (file && fileName) {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileName,
+          Body: file,
+        }),
+      );
+      author.image = `https://balkon-images.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    }
 
     return await this.authorRepository.save(author);
   }
@@ -45,7 +72,12 @@ export class AuthorService {
     return author;
   }
 
-  async updateAuthor(id: string, updateAuthorDto: CreateAuthorDto) {
+  async updateAuthor(
+    id: string,
+    updateAuthorDto: CreateAuthorDto,
+    fileName?: string,
+    file?: Buffer,
+  ) {
     const author = await this.authorRepository.findOne({
       where: { id },
       relations: ['books'],
@@ -57,6 +89,17 @@ export class AuthorService {
 
     Object.assign(author, updateAuthorDto);
 
+    if (file && fileName) {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileName,
+          Body: file,
+        }),
+      );
+      author.image = `https://balkon-images.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    }
+
     return await this.authorRepository.save(author);
   }
 
@@ -65,6 +108,17 @@ export class AuthorService {
 
     if (!author) {
       throw new NotFoundException(`Author with ID ${id} not found`);
+    }
+
+    if (author.image) {
+      const fileKey = author.image.split('/').pop();
+
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: 'balkon-images',
+          Key: fileKey,
+        }),
+      );
     }
 
     await this.authorRepository.remove(author);
