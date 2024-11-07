@@ -16,7 +16,7 @@ export class AuthorService {
   ) {}
 
   async getAuthors() {
-    const authors = await this.authorRepository.find();
+    const authors = await this.authorRepository.find({ relations: ['books'] });
 
     if (!authors) {
       throw new NotFoundException('There are no authors');
@@ -33,7 +33,10 @@ export class AuthorService {
   }
 
   async getAuthor(id: string) {
-    const author = await this.authorRepository.findOne({ where: { id } });
+    const author = await this.authorRepository.findOne({
+      where: { id },
+      relations: ['books'],
+    });
 
     if (!author) {
       throw new NotFoundException(`Author with ID ${id} not found`);
@@ -43,7 +46,10 @@ export class AuthorService {
   }
 
   async updateAuthor(id: string, updateAuthorDto: CreateAuthorDto) {
-    const author = await this.authorRepository.findOne({ where: { id } });
+    const author = await this.authorRepository.findOne({
+      where: { id },
+      relations: ['books'],
+    });
 
     if (!author) {
       throw new NotFoundException(`Author with ID ${id} not found`);
